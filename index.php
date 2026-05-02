@@ -1,98 +1,105 @@
-<?php
-session_start();
-
-// डेटाबेस कनेक्शन (employees टेबल चेक करने के लिए)
-$conn = new mysqli("localhost", "root", "", "ems_db");
-
-// 1. Admin के लिए फिक्स्ड क्रेडेंशियल्स
-$fixed_admin_user = "admin";
-$fixed_admin_pass = "123";
-
-$error = "";
-
-if (isset($_POST['login'])) {
-    $user = $_POST['username'];
-    $pass = $_POST['password'];
-
-    // 2. पहले Admin चेक करें (Fixed Variable Method)
-    if ($user === $fixed_admin_user && $pass === $fixed_admin_pass) {
-        $_SESSION['admin_user'] = $user;
-        $_SESSION['role'] = 'admin'; // रोल सेट करें
-        $_SESSION['logged_in'] = true;
-        header("Location: dashboard.php");
-        exit();
-    } 
-    
-    // 3. अगर Admin नहीं है, तो Employee Table चेक करें (Database Method)
-    else {
-        // SQL Injection से बचने के लिए तैयार क्वेरी
-        $stmt = $conn->prepare("SELECT id, name FROM employees WHERE email = ? AND phone = ?");
-        $stmt->bind_param("ss", $user, $pass);
-        $stmt->execute();
-        $result = $stmt->get_result();
-
-        if ($result->num_rows === 1) {
-            $emp_data = $result->fetch_assoc();
-            
-            $_SESSION['emp_id'] = $emp_data['id'];
-            $_SESSION['emp_name'] = $emp_data['name'];
-            $_SESSION['role'] = 'employee'; // रोल सेट करें
-            $_SESSION['logged_in'] = true;
-            
-            header("Location: ../employee_dashboard.php");
-            exit();
-        } else {
-            $error = "गलत यूजरनेम (Email) या पासवर्ड (Phone)!";
-        }
-    }
-}
-?>
-
+<?php include "header.php"; ?>
 <!DOCTYPE html>
-<html lang="hi">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>EMS Login - Admin & Employee</title>
+    <title>EMS Image Slider</title>
     <style>
-        body { font-family: Arial, sans-serif; background-color: #f4f4f4; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
-        .login-container { background: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); width: 350px; }
-        .login-container h2 { text-align: center; color: #333; margin-bottom: 20px; }
-        .form-group { margin-bottom: 15px; }
-        .form-group label { display: block; margin-bottom: 5px; font-weight: bold; }
-        .form-group input { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; }
-        .btn-login { width: 100%; padding: 10px; background-color: #2c3e50; border: none; color: white; border-radius: 4px; cursor: pointer; font-size: 16px; }
-        .btn-login:hover { background-color: #1a252f; }
-        .error { color: red; font-size: 14px; text-align: center; margin-bottom: 10px; background: #ffeaea; padding: 5px; border-radius: 4px; }
-        .note { font-size: 12px; color: #666; text-align: center; margin-top: 15px; border-top: 1px solid #eee; padding-top: 10px; }
+        body { 
+            margin: 0; 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            background: #f4f6f9; 
+        }
+
+        /* Slider Container: Ise Header ke barabar karne ke liye width 100% rakhi hai */
+        .slider-wrapper {
+            width: 100%;
+            max-width: 100%; /* Header ke barabar failne ke liye */
+            margin: 0 auto;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .slider {
+            width: 100%;
+            position: relative;
+            overflow: hidden;
+            /* Height ko auto rakha hai taaki image ke size ke hisab se adjust ho */
+            height: 500px; 
+        }
+
+        .slides {
+            display: flex;
+            width: 300%; 
+            height: 100%;
+            animation: slide 15s infinite ease-in-out;
+        }
+
+        .slides img {
+            width: 33.333%;
+            height: 100%;
+            /* 'cover' image ko fatne nahi deta, lekin agar image choti hai toh 'contain' use karein */
+            object-fit: cover; 
+            object-position: center;
+        }
+
+        @keyframes slide {
+            0%, 25% { transform: translateX(0%); }
+            33%, 58% { transform: translateX(-33.333%); }
+            66%, 91% { transform: translateX(-66.666%); }
+            100% { transform: translateX(0%); }
+        }
+
+        /* Overlay Caption */
+        .caption {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: linear-gradient(transparent, rgba(0,0,0,0.8));
+            color: white;
+            padding: 40px 20px 20px 20px;
+            text-align: left;
+        }
+
+        .caption h2 { 
+            margin: 0; 
+            font-size: 2rem; 
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+        }
+        
+        .caption p { 
+            margin: 10px 0 0 0; 
+            font-size: 1.1rem; 
+            opacity: 0.9;
+        }
+
+        /* Mobile Responsive Settings */
+        @media (max-width: 768px) {
+            .slider { height: 300px; } /* Mobile pe height kam kar di */
+            .caption h2 { font-size: 1.2rem; }
+            .caption p { font-size: 0.9rem; }
+        }
     </style>
 </head>
 <body>
 
-<div class="login-container">
-    <h2>EMS Login</h2>
-    
-    <?php if ($error): ?>
-        <div class="error"><?php echo $error; ?></div>
-    <?php endif; ?>
-
-    <form action="" method="POST">
-        <div class="form-group">
-            <label>Username / Email</label>
-            <input type="text" name="username" placeholder="Admin user or Emp Email" required>
+<div class="slider-wrapper">
+    <div class="slider">
+        <div class="slides">
+            <img src="images/ems1.jfif" alt="EMS Dashboard">
+            <img src="images/ems2.jfif" alt="Employee Records">
+            <img src="images/ems3.jfif" alt="Attendance System">
         </div>
-        <div class="form-group">
-            <label>Password / Phone</label>
-            <input type="password" name="password" placeholder="Password or Phone" required>
-        </div>
-        <button type="submit" name="login" class="btn-login">Sign In</button>
-    </form>
 
-    <div class="note">
-        <strong>Admin:</strong> Use fixed user/pass.<br>
-        <strong>Employee:</strong> Use your Email & Phone.
+        <div class="caption">
+            <h2>Employee Management System</h2>
+            <p>Manage Employees | Attendance | Salary</p>
+        </div>
     </div>
 </div>
 
 </body>
 </html>
+<?php include "footer.php"; ?>
